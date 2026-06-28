@@ -23,6 +23,7 @@
   </form>
   <nav class="topbar-actions">
     <button class="btn-ghost ripple" id="createScriptBtn"><i class="fa-solid fa-plus"></i> new script</button>
+    <button class="btn-ghost ripple hidden" id="myScriptsBtn"><i class="fa-solid fa-folder-open"></i> my scripts</button>
     <button class="btn-ghost ripple" id="searchUsersBtn"><i class="fa-solid fa-users"></i> users</button>
     <button class="btn-ghost ripple updates-btn" id="updatesBtn">
       <i class="fa-solid fa-bolt"></i> updates <span class="version-badge" id="versionBadge">v?.?.?</span>
@@ -54,7 +55,7 @@
       <div class="scripts-main">
         <div class="view-heading">
           <div class="view-heading-inner">
-            <h1>all scripts</h1>
+            <h1><span class="prompt">$</span> ls scripts/ <span class="cursor">_</span></h1>
             <span class="view-tag">catalog: main</span>
           </div>
           <p class="muted">browse what people are sharing.</p>
@@ -146,6 +147,16 @@
       <label>description<textarea id="scriptDescription" maxlength="400" rows="2"></textarea></label>
       <label>tags <span class="muted small">(comma separated)</span><input type="text" id="scriptTags" placeholder="utility, automation" /></label>
       <label>code<textarea id="scriptCode" class="code-area" rows="14" required spellcheck="false"></textarea></label>
+      <div class="toggle-row">
+        <div class="toggle-row-text">
+          <span class="toggle-row-title"><i class="fa-solid fa-lock"></i> allow copy &amp; download</span>
+          <span class="toggle-row-sub muted small">turn this off to let people read your code without taking it</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="scriptAllowCopy" checked />
+          <span class="switch-slider"></span>
+        </label>
+      </div>
       <p class="form-error" id="scriptFormError"></p>
       <button type="submit" class="btn-primary ripple">save script</button>
     </form>

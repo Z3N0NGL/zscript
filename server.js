@@ -37,8 +37,19 @@ function publicScript(s, author) {
     language: s.language, code: s.code, tags: s.tags || [],
     createdAt: s.createdAt, updatedAt: s.updatedAt,
     installs: s.installs || 0,
+    allowCopy: s.allowCopy !== false,
     author: author ? publicUser(author) : null
   };
+}
+
+async function getOptionalUser(req) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return null;
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    return await db.getUserById(payload.id);
+  } catch (e) { return null; }
 }
 
 function makeToken(user) {
@@ -220,6 +231,14 @@ app.get('/api/scripts/:id', async (req, res) => {
 
 app.post('/api/scripts/:id/install', async (req, res) => {
   try {
+    const script = await db.getScriptById(req.params.id);
+    if (!script) return res.status(404).json({ error: 'Script not found.' });
+    if (script.allowCopy === false) {
+      const user = await getOptionalUser(req);
+      const isOwner = user && user.id === script.userId;
+      const isAdmin = user?.tags?.ownerAccess;
+      if (!isOwner && !isAdmin) return res.status(403).json({ error: 'The creator has disabled downloading for this script.' });
+    }
     await db.incrementInstalls(req.params.id);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -227,7 +246,7 @@ app.post('/api/scripts/:id/install', async (req, res) => {
 
 app.post('/api/scripts', requireAuth, async (req, res) => {
   try {
-    const { title, description, language, code, tags } = req.body;
+    const { title, description, language, code, tags, allowCopy } = req.body;
     if (!title || !code) return res.status(400).json({ error: 'Title and code required.' });
     if (title.length > 80) return res.status(400).json({ error: 'Title too long.' });
     if (code.length > 200000) return res.status(400).json({ error: 'Script too large.' });
@@ -236,6 +255,7 @@ app.post('/api/scripts', requireAuth, async (req, res) => {
       title: title.trim(), description: (description || '').slice(0, 400),
       language: (language || 'plaintext').slice(0, 30), code,
       tags: Array.isArray(tags) ? tags.slice(0, 5).map(t => String(t).slice(0, 20)) : [],
+      allowCopy: typeof allowCopy === 'boolean' ? allowCopy : true,
       installs: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
     };
     await db.createScript(script);
@@ -249,13 +269,14 @@ app.put('/api/scripts/:id', requireAuth, async (req, res) => {
     if (!script) return res.status(404).json({ error: 'Script not found.' });
     if (script.userId !== req.user.id && !req.user.tags.ownerAccess)
       return res.status(403).json({ error: "Can't edit someone else's script." });
-    const { title, description, language, code, tags } = req.body;
+    const { title, description, language, code, tags, allowCopy } = req.body;
     const updates = { updatedAt: new Date().toISOString() };
     if (typeof title === 'string' && title.trim()) updates.title = title.trim().slice(0, 80);
     if (typeof description === 'string') updates.description = description.slice(0, 400);
     if (typeof language === 'string') updates.language = language.slice(0, 30);
     if (typeof code === 'string' && code.length <= 200000) updates.code = code;
     if (Array.isArray(tags)) updates.tags = tags.slice(0, 5).map(t => String(t).slice(0, 20));
+    if (typeof allowCopy === 'boolean') updates.allowCopy = allowCopy;
     const updated = await db.updateScript(req.params.id, updates);
     const author = await db.getUserById(updated.userId);
     res.json({ script: publicScript(updated, author) });

@@ -110,6 +110,22 @@ function esc(str) {
   return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function lineCount(code) {
+  return String(code||'').replace(/\r\n/g,'\n').split('\n').length;
+}
+
+function codeWithLineNumbers(code, { maxLines = null, variant = '' } = {}) {
+  const lines = String(code||'').replace(/\r\n/g,'\n').split('\n');
+  const limited = maxLines && lines.length > maxLines;
+  const shown = limited ? lines.slice(0, maxLines) : lines;
+  const nums = shown.map((_,i) => `<div>${i+1}</div>`).join('');
+  const codeLines = shown.map(l => `<div>${esc(l) || '&nbsp;'}</div>`).join('');
+  return `<div class="code-view ${variant}${limited ? ' code-view-fade' : ''}">
+    <div class="code-gutter">${nums}</div>
+    <div class="code-lines">${codeLines}</div>
+  </div>`;
+}
+
 // ---- Toast ----
 let toastTimer;
 function toast(msg, isError = false) {
@@ -173,6 +189,7 @@ function closeModal(id) { $(`#${id}`)?.classList.add('hidden'); }
 // ---- Auth UI ----
 function renderAuthArea() {
   const area = $('#authArea');
+  $('#myScriptsBtn').classList.toggle('hidden', !state.user);
   if (!state.user) {
     area.innerHTML = `<button class="btn-ghost ripple" id="loginBtn"><i class="fa-solid fa-right-to-bracket"></i> log in</button>`;
     $('#loginBtn').addEventListener('click', () => openModal('authModalBackdrop'));
@@ -361,9 +378,14 @@ function renderScripts(scripts) {
     return `<div class="script-card" data-id="${s.id}" style="animation-delay:${i*0.04}s">
       <div class="script-card-top">
         <h3>${esc(s.title)}</h3>
-        ${s.language?`<span class="lang">${esc(s.language)}</span>`:''}
+        <div class="script-card-meta">
+          ${s.allowCopy===false?'<i class="fa-solid fa-lock lock-badge" title="copy/download disabled"></i>':''}
+          ${s.language?`<span class="lang">${esc(s.language)}</span>`:''}
+        </div>
       </div>
       ${s.description?`<p>${esc(s.description)}</p>`:''}
+      <div class="mini-dots"><span></span><span></span><span></span><span class="mini-dots-lines">${lineCount(s.code)} lines</span></div>
+      ${codeWithLineNumbers(s.code, { maxLines:5, variant:'code-view-preview' })}
       ${tagsHtml?`<div class="script-card-tags">${tagsHtml}</div>`:''}
       <div class="card-footer">
         ${pfpImg(s.author,15)}
@@ -390,6 +412,8 @@ function renderScriptDetail(s) {
   const el = $('#scriptDetail');
   const isOwn = state.user && s.author?.id === state.user.id;
   const isAdmin = state.user?.tags?.ownerAccess;
+  const canBypassLock = isOwn || isAdmin;
+  const locked = s.allowCopy === false;
   const tagsHtml = (s.tags||[]).map(t=>`<span class="tag-pill">${esc(t)}</span>`).join('');
   el.innerHTML = `
     <div class="script-detail-head">
@@ -405,36 +429,48 @@ function renderScriptDetail(s) {
         ${tagsHtml?`<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">${tagsHtml}</div>`:''}
       </div>
       <div class="script-detail-actions">
-        <button class="btn-install ripple" id="installBtn"><i class="fa-solid fa-download"></i> install</button>
-        <button class="btn-ghost ripple" id="copyBtn"><i class="fa-regular fa-copy"></i> copy</button>
+        ${(!locked||canBypassLock)?`
+          <button class="btn-install ripple" id="installBtn"><i class="fa-solid fa-download"></i> install</button>
+          <button class="btn-ghost ripple" id="copyBtn"><i class="fa-regular fa-copy"></i> copy</button>
+        `:`<span class="lock-note muted small"><i class="fa-solid fa-lock"></i> creator disabled copying &amp; downloading</span>`}
         ${isOwn||isAdmin?`<button class="btn-ghost ripple" id="editScriptBtn"><i class="fa-solid fa-pen"></i> edit</button>`:''}
         ${isOwn||isAdmin?`<button class="btn-danger ripple" id="deleteScriptBtn"><i class="fa-solid fa-trash"></i> delete</button>`:''}
       </div>
+      ${locked&&canBypassLock?`<div class="lock-note muted small" style="width:100%;"><i class="fa-solid fa-lock"></i> copy/download is disabled for everyone else on this script</div>`:''}
     </div>
-    <pre class="code-block">${esc(s.code)}</pre>`;
+    <div class="code-window">
+      <div class="code-window-bar">
+        <span class="win-dot win-red"></span><span class="win-dot win-yellow"></span><span class="win-dot win-green"></span>
+        <span class="code-window-title">${esc((s.title||'script').toLowerCase().replace(/[^a-z0-9_\-]/g,'_'))}.${langToExt(s.language||'txt')}</span>
+        <span class="code-window-lines muted small">${lineCount(s.code)} lines</span>
+      </div>
+      ${codeWithLineNumbers(s.code, { variant:'code-view-full' })}
+    </div>`;
 
   setupRipples();
 
   el.querySelector('.script-author').onclick = () => { if (s.author?.username) loadProfile(s.author.username); };
 
-  $('#installBtn').onclick = async () => {
-    sfx.install();
-    try { await api(`/scripts/${s.id}/install`, { method:'POST' }); } catch(e) {}
-    const ext = langToExt(s.language||'txt');
-    const blob = new Blob([s.code], { type:'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = (s.title||'script').replace(/[^a-z0-9_\-]/gi,'_') + '.' + ext;
-    a.click(); URL.revokeObjectURL(url);
-    toast('downloading: ' + a.download);
-    s.installs = (s.installs||0) + 1;
-    el.querySelector('.install-count').innerHTML = `<i class="fa-solid fa-download"></i> ${s.installs} installs`;
-  };
+  if (!locked || canBypassLock) {
+    $('#installBtn').onclick = async () => {
+      sfx.install();
+      try { await api(`/scripts/${s.id}/install`, { method:'POST' }); } catch(e) { toast(e.message, true); return; }
+      const ext = langToExt(s.language||'txt');
+      const blob = new Blob([s.code], { type:'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = (s.title||'script').replace(/[^a-z0-9_\-]/gi,'_') + '.' + ext;
+      a.click(); URL.revokeObjectURL(url);
+      toast('downloading: ' + a.download);
+      s.installs = (s.installs||0) + 1;
+      el.querySelector('.install-count').innerHTML = `<i class="fa-solid fa-download"></i> ${s.installs} installs`;
+    };
 
-  $('#copyBtn').onclick = () => {
-    sfx.copy();
-    navigator.clipboard.writeText(s.code).then(() => toast('copied to clipboard!'));
-  };
+    $('#copyBtn').onclick = () => {
+      sfx.copy();
+      navigator.clipboard.writeText(s.code).then(() => toast('copied to clipboard!'));
+    };
+  }
 
   if (isOwn||isAdmin) {
     $('#editScriptBtn').onclick = () => { sfx.click(); openScriptModal(s); };
@@ -467,6 +503,7 @@ function openScriptModal(script) {
   $('#scriptDescription').value = script?.description||'';
   $('#scriptTags').value = (script?.tags||[]).join(', ');
   $('#scriptCode').value = script?.code||'';
+  $('#scriptAllowCopy').checked = script ? (script.allowCopy !== false) : true;
   $('#scriptFormError').textContent = '';
   openModal('scriptModalBackdrop');
 }
@@ -478,6 +515,7 @@ $('#scriptForm').onsubmit = async e => {
     description:$('#scriptDescription').value,
     tags:$('#scriptTags').value.split(',').map(t=>t.trim()).filter(Boolean),
     code:$('#scriptCode').value,
+    allowCopy:$('#scriptAllowCopy').checked,
   };
   try {
     const data = id ? await api(`/scripts/${id}`,{method:'PUT',body}) : await api('/scripts',{method:'POST',body});
@@ -489,6 +527,12 @@ $('#scriptForm').onsubmit = async e => {
 };
 
 $('#scriptSearchForm').onsubmit = e => { e.preventDefault(); sfx.click(); loadScripts($('#scriptSearchInput').value.trim()); };
+
+$('#myScriptsBtn').onclick = () => {
+  sfx.click();
+  if (!state.user) { openModal('authModalBackdrop'); return; }
+  loadProfile(state.user.username);
+};
 
 // ---- Users ----
 $('#searchUsersBtn').onclick = () => { showView('users'); loadUsers(''); };
@@ -549,9 +593,14 @@ function renderProfile(user, scripts) {
       <div class="script-card" data-id="${s.id}" style="animation-delay:${i*0.04}s">
         <div class="script-card-top">
           <h3>${esc(s.title)}</h3>
-          ${s.language?`<span class="lang">${esc(s.language)}</span>`:''}
+          <div class="script-card-meta">
+            ${s.allowCopy===false?'<i class="fa-solid fa-lock lock-badge" title="copy/download disabled"></i>':''}
+            ${s.language?`<span class="lang">${esc(s.language)}</span>`:''}
+          </div>
         </div>
         ${s.description?`<p>${esc(s.description)}</p>`:''}
+        <div class="mini-dots"><span></span><span></span><span></span><span class="mini-dots-lines">${lineCount(s.code)} lines</span></div>
+        ${codeWithLineNumbers(s.code, { maxLines:4, variant:'code-view-preview' })}
         <div class="card-footer">
           <span>${timeAgo(s.createdAt)}</span>
           <span class="installs"><i class="fa-solid fa-download" style="font-size:9px;"></i> ${s.installs||0}</span>
