@@ -202,12 +202,19 @@ function onLoggedIn(data) {
 }
 
 // Google sign in
-async function setupGoogle() {
+// We split config fetching from rendering so either can happen first.
+async function fetchGoogleConfig() {
   try {
     state.config = await api('/config');
   } catch (e) { /* server might still be booting */ }
-  if (!state.config.googleEnabled || !window.google) return;
-  $('#googleLoginArea').classList.remove('hidden');
+}
+
+function renderGoogleButton() {
+  if (!state.config.googleEnabled || !state.config.googleClientId) return;
+  if (!window.google || !window.google.accounts) return;
+  const area = $('#googleLoginArea');
+  if (!area) return;
+  area.classList.remove('hidden');
   google.accounts.id.initialize({
     client_id: state.config.googleClientId,
     callback: async (response) => {
@@ -219,7 +226,23 @@ async function setupGoogle() {
       }
     }
   });
-  google.accounts.id.renderButton($('#googleBtnContainer'), { theme: 'outline', size: 'large' });
+  google.accounts.id.renderButton($('#googleBtnContainer'), {
+    theme: 'filled_black',
+    size: 'large',
+    width: 300,
+    text: 'continue_with'
+  });
+}
+
+async function setupGoogle() {
+  await fetchGoogleConfig();
+  if (window._googleLibraryLoaded) {
+    // Library already loaded before setupGoogle ran
+    renderGoogleButton();
+  } else {
+    // Library will load later — register callback
+    window._googleReadyCb = renderGoogleButton;
+  }
 }
 
 // ---------- scripts: browse / create / view ----------

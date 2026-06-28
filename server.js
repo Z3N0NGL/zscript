@@ -440,7 +440,7 @@ app.put('/api/admin/settings', requireAuth, requireOwnerAccess, (req, res) => {
 
 // ---------- serve the frontend ----------
 
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(__dirname));
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found.' });
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));

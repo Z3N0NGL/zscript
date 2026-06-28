@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Z Scripts</title>
+<title>ZScripts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -11,7 +14,7 @@
 <!-- ===== Header ===== -->
 <header class="topbar">
   <div class="brand" data-nav="home">
-    <span class="brand-z">Z</span>Scripts<span class="cursor">_</span>
+    <span class="brand-z">Z</span><span class="brand-scripts">Scripts</span><span class="cursor">_</span>
   </div>
 
   <form class="script-search" id="scriptSearchForm">
@@ -20,10 +23,10 @@
   </form>
 
   <nav class="topbar-actions">
-    <button class="btn-ghost" id="createScriptBtn">+ create script</button>
-    <button class="btn-ghost" id="searchUsersBtn">search users</button>
-    <button class="btn-ghost" id="updatesBtn">
-      latest updates <span class="version-badge" id="versionBadge">v?.?.?</span>
+    <button class="btn-ghost" id="createScriptBtn">+ new script</button>
+    <button class="btn-ghost" id="searchUsersBtn">users</button>
+    <button class="btn-ghost updates-btn" id="updatesBtn">
+      updates <span class="version-badge" id="versionBadge">v?.?.?</span>
     </button>
     <div id="authArea"></div>
   </nav>
@@ -35,27 +38,33 @@
   <!-- Home / browse scripts -->
   <section id="view-home" class="view">
     <div class="view-heading">
-      <h1>all scripts</h1>
-      <p class="muted">browse what people are sharing. search the bar above to filter.</p>
+      <div class="view-heading-inner">
+        <h1>all scripts</h1>
+        <span class="view-tag">catalog: main</span>
+      </div>
+      <p class="muted">browse what people are sharing. use the search bar to filter.</p>
     </div>
     <div id="scriptsGrid" class="scripts-grid"></div>
-    <p id="scriptsEmpty" class="muted hidden">nothing here yet. be the first to create a script.</p>
+    <p id="scriptsEmpty" class="muted hidden empty-state">nothing here yet — be the first to create a script.</p>
   </section>
 
   <!-- Single script view -->
   <section id="view-script" class="view hidden">
-    <button class="btn-link" data-nav="home">&larr; back to all scripts</button>
+    <button class="btn-link" data-nav="home">← back to all scripts</button>
     <div class="script-detail" id="scriptDetail"></div>
   </section>
 
   <!-- Search users -->
   <section id="view-users" class="view hidden">
     <div class="view-heading">
-      <h1>search users</h1>
-      <p class="muted">find people by username and check out their profile.</p>
+      <div class="view-heading-inner">
+        <h1>users</h1>
+        <span class="view-tag">directory</span>
+      </div>
+      <p class="muted">find people by username and browse their profile.</p>
     </div>
     <form class="user-search" id="userSearchForm">
-      <input type="text" id="userSearchInput" placeholder="username..." autocomplete="off" />
+      <input type="text" id="userSearchInput" placeholder="search username..." autocomplete="off" />
       <button type="submit">search</button>
     </form>
     <div id="usersList" class="users-list"></div>
@@ -63,7 +72,7 @@
 
   <!-- Profile view (own or others) -->
   <section id="view-profile" class="view hidden">
-    <button class="btn-link" data-nav="home">&larr; back</button>
+    <button class="btn-link" data-nav="home">← back</button>
     <div id="profileContent"></div>
   </section>
 
@@ -72,46 +81,49 @@
 <!-- ===== Auth modal ===== -->
 <div class="modal-backdrop hidden" id="authModalBackdrop">
   <div class="modal">
-    <button class="modal-close" data-close="authModalBackdrop">&times;</button>
+    <button class="modal-close" data-close="authModalBackdrop">×</button>
+
+    <div id="googleLoginArea" class="google-area-top hidden">
+      <div id="googleBtnContainer"></div>
+      <div class="divider"><span>or continue with email</span></div>
+    </div>
+
     <div class="tabs">
       <button class="tab active" data-tab="login">log in</button>
       <button class="tab" data-tab="register">sign up</button>
     </div>
 
     <form id="loginForm" class="modal-form">
-      <label>email<input type="email" id="loginEmail" required /></label>
-      <label>password<input type="password" id="loginPassword" required /></label>
+      <label>email<input type="email" id="loginEmail" required autocomplete="email" /></label>
+      <label>password<input type="password" id="loginPassword" required autocomplete="current-password" /></label>
       <p class="form-error" id="loginError"></p>
       <button type="submit" class="btn-primary">log in</button>
     </form>
 
     <form id="registerForm" class="modal-form hidden">
-      <label>username<input type="text" id="registerUsername" required maxlength="20" /></label>
-      <label>email<input type="email" id="registerEmail" required /></label>
-      <label>password<input type="password" id="registerPassword" required minlength="6" /></label>
+      <label>username<input type="text" id="registerUsername" required maxlength="20" autocomplete="username" /></label>
+      <label>email<input type="email" id="registerEmail" required autocomplete="email" /></label>
+      <label>password<input type="password" id="registerPassword" required minlength="6" autocomplete="new-password" /></label>
       <p class="form-error" id="registerError"></p>
       <button type="submit" class="btn-primary">create account</button>
     </form>
-
-    <div id="googleLoginArea" class="google-area hidden">
-      <div class="divider"><span>or</span></div>
-      <div id="googleBtnContainer"></div>
-    </div>
   </div>
 </div>
 
 <!-- ===== Create / edit script modal ===== -->
 <div class="modal-backdrop hidden" id="scriptModalBackdrop">
   <div class="modal modal-wide">
-    <button class="modal-close" data-close="scriptModalBackdrop">&times;</button>
+    <button class="modal-close" data-close="scriptModalBackdrop">×</button>
     <h2 id="scriptModalTitle">create script</h2>
     <form id="scriptForm" class="modal-form">
       <input type="hidden" id="scriptFormId" />
-      <label>title<input type="text" id="scriptTitle" maxlength="80" required /></label>
+      <div class="form-row-2">
+        <label>title<input type="text" id="scriptTitle" maxlength="80" required /></label>
+        <label>language / type<input type="text" id="scriptLanguage" placeholder="python, lua, js…" maxlength="30" /></label>
+      </div>
       <label>description<textarea id="scriptDescription" maxlength="400" rows="2"></textarea></label>
-      <label>language / type<input type="text" id="scriptLanguage" placeholder="e.g. python, lua, javascript" maxlength="30" /></label>
-      <label>tags <span class="muted small">(comma separated, optional)</span><input type="text" id="scriptTags" placeholder="utility, fun, automation" /></label>
-      <label>code<textarea id="scriptCode" class="code-area" rows="16" required spellcheck="false"></textarea></label>
+      <label>tags <span class="muted small">(comma separated)</span><input type="text" id="scriptTags" placeholder="utility, automation, fun" /></label>
+      <label>code<textarea id="scriptCode" class="code-area" rows="14" required spellcheck="false"></textarea></label>
       <p class="form-error" id="scriptFormError"></p>
       <button type="submit" class="btn-primary">save script</button>
     </form>
@@ -121,7 +133,7 @@
 <!-- ===== Latest updates modal ===== -->
 <div class="modal-backdrop hidden" id="updatesModalBackdrop">
   <div class="modal">
-    <button class="modal-close" data-close="updatesModalBackdrop">&times;</button>
+    <button class="modal-close" data-close="updatesModalBackdrop">×</button>
     <h2>latest updates</h2>
     <p class="version-line">version <span id="updatesVersion">-</span></p>
     <p id="updatesText" class="updates-text"></p>
@@ -133,8 +145,8 @@
   <div class="admin-header" id="adminDragHandle">
     <span>owner access panel</span>
     <div class="admin-header-btns">
-      <button id="adminFullscreenBtn" title="toggle fullscreen">&#9974;</button>
-      <button id="adminCloseBtn" title="close (O)">&times;</button>
+      <button id="adminFullscreenBtn" title="toggle fullscreen">⛶</button>
+      <button id="adminCloseBtn" title="close (O)">×</button>
     </div>
   </div>
   <div class="admin-tabs">
@@ -147,7 +159,14 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- Google Identity Services — loaded with onload callback so we know exactly when it's ready -->
+<script>
+  function onGoogleLibraryLoad() {
+    if (window._googleReadyCb) window._googleReadyCb();
+    window._googleLibraryLoaded = true;
+  }
+</script>
+<script src="https://accounts.google.com/gsi/client" async defer onload="onGoogleLibraryLoad()"></script>
 <script src="app.js"></script>
 </body>
 </html>
