@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Z Scripts</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ===== Header ===== -->
+<header class="topbar">
+  <div class="brand" data-nav="home">
+    <span class="brand-z">Z</span>Scripts<span class="cursor">_</span>
+  </div>
+
+  <form class="script-search" id="scriptSearchForm">
+    <input type="text" id="scriptSearchInput" placeholder="search scripts..." autocomplete="off" />
+    <button type="submit">search</button>
+  </form>
+
+  <nav class="topbar-actions">
+    <button class="btn-ghost" id="createScriptBtn">+ create script</button>
+    <button class="btn-ghost" id="searchUsersBtn">search users</button>
+    <button class="btn-ghost" id="updatesBtn">
+      latest updates <span class="version-badge" id="versionBadge">v?.?.?</span>
+    </button>
+    <div id="authArea"></div>
+  </nav>
+</header>
+
+<!-- ===== Main views ===== -->
+<main id="app">
+
+  <!-- Home / browse scripts -->
+  <section id="view-home" class="view">
+    <div class="view-heading">
+      <h1>all scripts</h1>
+      <p class="muted">browse what people are sharing. search the bar above to filter.</p>
+    </div>
+    <div id="scriptsGrid" class="scripts-grid"></div>
+    <p id="scriptsEmpty" class="muted hidden">nothing here yet. be the first to create a script.</p>
+  </section>
+
+  <!-- Single script view -->
+  <section id="view-script" class="view hidden">
+    <button class="btn-link" data-nav="home">&larr; back to all scripts</button>
+    <div class="script-detail" id="scriptDetail"></div>
+  </section>
+
+  <!-- Search users -->
+  <section id="view-users" class="view hidden">
+    <div class="view-heading">
+      <h1>search users</h1>
+      <p class="muted">find people by username and check out their profile.</p>
+    </div>
+    <form class="user-search" id="userSearchForm">
+      <input type="text" id="userSearchInput" placeholder="username..." autocomplete="off" />
+      <button type="submit">search</button>
+    </form>
+    <div id="usersList" class="users-list"></div>
+  </section>
+
+  <!-- Profile view (own or others) -->
+  <section id="view-profile" class="view hidden">
+    <button class="btn-link" data-nav="home">&larr; back</button>
+    <div id="profileContent"></div>
+  </section>
+
+</main>
+
+<!-- ===== Auth modal ===== -->
+<div class="modal-backdrop hidden" id="authModalBackdrop">
+  <div class="modal">
+    <button class="modal-close" data-close="authModalBackdrop">&times;</button>
+    <div class="tabs">
+      <button class="tab active" data-tab="login">log in</button>
+      <button class="tab" data-tab="register">sign up</button>
+    </div>
+
+    <form id="loginForm" class="modal-form">
+      <label>email<input type="email" id="loginEmail" required /></label>
+      <label>password<input type="password" id="loginPassword" required /></label>
+      <p class="form-error" id="loginError"></p>
+      <button type="submit" class="btn-primary">log in</button>
+    </form>
+
+    <form id="registerForm" class="modal-form hidden">
+      <label>username<input type="text" id="registerUsername" required maxlength="20" /></label>
+      <label>email<input type="email" id="registerEmail" required /></label>
+      <label>password<input type="password" id="registerPassword" required minlength="6" /></label>
+      <p class="form-error" id="registerError"></p>
+      <button type="submit" class="btn-primary">create account</button>
+    </form>
+
+    <div id="googleLoginArea" class="google-area hidden">
+      <div class="divider"><span>or</span></div>
+      <div id="googleBtnContainer"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Create / edit script modal ===== -->
+<div class="modal-backdrop hidden" id="scriptModalBackdrop">
+  <div class="modal modal-wide">
+    <button class="modal-close" data-close="scriptModalBackdrop">&times;</button>
+    <h2 id="scriptModalTitle">create script</h2>
+    <form id="scriptForm" class="modal-form">
+      <input type="hidden" id="scriptFormId" />
+      <label>title<input type="text" id="scriptTitle" maxlength="80" required /></label>
+      <label>description<textarea id="scriptDescription" maxlength="400" rows="2"></textarea></label>
+      <label>language / type<input type="text" id="scriptLanguage" placeholder="e.g. python, lua, javascript" maxlength="30" /></label>
+      <label>tags <span class="muted small">(comma separated, optional)</span><input type="text" id="scriptTags" placeholder="utility, fun, automation" /></label>
+      <label>code<textarea id="scriptCode" class="code-area" rows="16" required spellcheck="false"></textarea></label>
+      <p class="form-error" id="scriptFormError"></p>
+      <button type="submit" class="btn-primary">save script</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Latest updates modal ===== -->
+<div class="modal-backdrop hidden" id="updatesModalBackdrop">
+  <div class="modal">
+    <button class="modal-close" data-close="updatesModalBackdrop">&times;</button>
+    <h2>latest updates</h2>
+    <p class="version-line">version <span id="updatesVersion">-</span></p>
+    <p id="updatesText" class="updates-text"></p>
+  </div>
+</div>
+
+<!-- ===== Owner Access admin panel (press O to open) ===== -->
+<div class="admin-panel hidden" id="adminPanel">
+  <div class="admin-header" id="adminDragHandle">
+    <span>owner access panel</span>
+    <div class="admin-header-btns">
+      <button id="adminFullscreenBtn" title="toggle fullscreen">&#9974;</button>
+      <button id="adminCloseBtn" title="close (O)">&times;</button>
+    </div>
+  </div>
+  <div class="admin-tabs">
+    <button class="admin-tab active" data-admintab="users">users</button>
+    <button class="admin-tab" data-admintab="settings">site settings</button>
+  </div>
+  <div class="admin-body" id="adminBody"></div>
+  <div class="admin-resize-handle" id="adminResizeHandle"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="app.js"></script>
+</body>
+</html>
