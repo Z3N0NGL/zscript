@@ -4,64 +4,80 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>ZScripts</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-<!-- ===== Header ===== -->
+<div class="page-glow"></div>
+
 <header class="topbar">
   <div class="brand" data-nav="home">
-    <span class="brand-z">Z</span><span class="brand-scripts">Scripts</span><span class="cursor">_</span>
+    <span class="brand-z">Z</span><span class="brand-rest">Scripts</span><span class="cursor">_</span>
   </div>
-
   <form class="script-search" id="scriptSearchForm">
+    <i class="fa-solid fa-magnifying-glass search-icon"></i>
     <input type="text" id="scriptSearchInput" placeholder="search scripts..." autocomplete="off" />
     <button type="submit">search</button>
   </form>
-
   <nav class="topbar-actions">
-    <button class="btn-ghost" id="createScriptBtn">+ new script</button>
-    <button class="btn-ghost" id="searchUsersBtn">users</button>
-    <button class="btn-ghost updates-btn" id="updatesBtn">
-      updates <span class="version-badge" id="versionBadge">v?.?.?</span>
+    <button class="btn-ghost ripple" id="createScriptBtn"><i class="fa-solid fa-plus"></i> new script</button>
+    <button class="btn-ghost ripple" id="searchUsersBtn"><i class="fa-solid fa-users"></i> users</button>
+    <button class="btn-ghost ripple updates-btn" id="updatesBtn">
+      <i class="fa-solid fa-bolt"></i> updates <span class="version-badge" id="versionBadge">v?.?.?</span>
     </button>
     <div id="authArea"></div>
   </nav>
 </header>
 
-<!-- ===== Main views ===== -->
 <main id="app">
-
-  <!-- Home / browse scripts -->
+  <!-- Home -->
   <section id="view-home" class="view">
-    <div class="view-heading">
-      <div class="view-heading-inner">
-        <h1>all scripts</h1>
-        <span class="view-tag">catalog: main</span>
+    <div class="home-layout">
+      <aside class="sidebar">
+        <div class="sidebar-block">
+          <div class="sidebar-title">
+            <span class="dot dot-live"></span> site news
+          </div>
+          <div id="newsFeed" class="news-feed">
+            <p class="muted small">loading...</p>
+          </div>
+        </div>
+        <div class="sidebar-block">
+          <div class="sidebar-title"><i class="fa-solid fa-trophy" style="color:var(--accent);font-size:10px;"></i> top scripts</div>
+          <div id="topScriptsList" class="top-scripts-list">
+            <p class="muted small" style="padding:10px 12px;">loading...</p>
+          </div>
+        </div>
+      </aside>
+      <div class="scripts-main">
+        <div class="view-heading">
+          <div class="view-heading-inner">
+            <h1>all scripts</h1>
+            <span class="view-tag">catalog: main</span>
+          </div>
+          <p class="muted">browse what people are sharing.</p>
+        </div>
+        <div id="scriptsGrid" class="scripts-grid"></div>
+        <p id="scriptsEmpty" class="muted hidden empty-state">nothing here yet — be the first.</p>
       </div>
-      <p class="muted">browse what people are sharing. use the search bar to filter.</p>
     </div>
-    <div id="scriptsGrid" class="scripts-grid"></div>
-    <p id="scriptsEmpty" class="muted hidden empty-state">nothing here yet — be the first to create a script.</p>
   </section>
 
-  <!-- Single script view -->
+  <!-- Single script -->
   <section id="view-script" class="view hidden">
-    <button class="btn-link" data-nav="home">← back to all scripts</button>
+    <button class="btn-link ripple" data-nav="home"><i class="fa-solid fa-arrow-left"></i> back to all scripts</button>
     <div class="script-detail" id="scriptDetail"></div>
   </section>
 
-  <!-- Search users -->
+  <!-- Users -->
   <section id="view-users" class="view hidden">
     <div class="view-heading">
       <div class="view-heading-inner">
         <h1>users</h1>
         <span class="view-tag">directory</span>
       </div>
-      <p class="muted">find people by username and browse their profile.</p>
     </div>
     <form class="user-search" id="userSearchForm">
       <input type="text" id="userSearchInput" placeholder="search username..." autocomplete="off" />
@@ -70,96 +86,100 @@
     <div id="usersList" class="users-list"></div>
   </section>
 
-  <!-- Profile view (own or others) -->
+  <!-- Profile -->
   <section id="view-profile" class="view hidden">
-    <button class="btn-link" data-nav="home">← back</button>
+    <button class="btn-link ripple" data-nav="home"><i class="fa-solid fa-arrow-left"></i> back</button>
     <div id="profileContent"></div>
   </section>
-
 </main>
 
-<!-- ===== Auth modal ===== -->
+<!-- Auth modal -->
 <div class="modal-backdrop hidden" id="authModalBackdrop">
-  <div class="modal">
-    <button class="modal-close" data-close="authModalBackdrop">×</button>
-
+  <div class="modal modal-anim">
+    <button class="modal-close ripple" data-close="authModalBackdrop"><i class="fa-solid fa-xmark"></i></button>
     <div id="googleLoginArea" class="google-area-top hidden">
       <div id="googleBtnContainer"></div>
       <div class="divider"><span>or continue with email</span></div>
     </div>
-
     <div class="tabs">
-      <button class="tab active" data-tab="login">log in</button>
-      <button class="tab" data-tab="register">sign up</button>
+      <button class="tab active" data-tab="login"><i class="fa-solid fa-right-to-bracket"></i> log in</button>
+      <button class="tab" data-tab="register"><i class="fa-solid fa-user-plus"></i> sign up</button>
     </div>
-
     <form id="loginForm" class="modal-form">
-      <label>email<input type="email" id="loginEmail" required autocomplete="email" /></label>
-      <label>password<input type="password" id="loginPassword" required autocomplete="current-password" /></label>
+      <label><i class="fa-solid fa-envelope"></i> email<input type="email" id="loginEmail" required autocomplete="email" /></label>
+      <label><i class="fa-solid fa-lock"></i> password<input type="password" id="loginPassword" required autocomplete="current-password" /></label>
       <p class="form-error" id="loginError"></p>
-      <button type="submit" class="btn-primary">log in</button>
+      <button type="submit" class="btn-primary ripple">log in</button>
     </form>
-
     <form id="registerForm" class="modal-form hidden">
-      <label>username<input type="text" id="registerUsername" required maxlength="20" autocomplete="username" /></label>
-      <label>email<input type="email" id="registerEmail" required autocomplete="email" /></label>
-      <label>password<input type="password" id="registerPassword" required minlength="6" autocomplete="new-password" /></label>
+      <label><i class="fa-solid fa-at"></i> username<input type="text" id="registerUsername" required maxlength="20" /></label>
+      <label><i class="fa-solid fa-envelope"></i> email<input type="email" id="registerEmail" required /></label>
+      <label><i class="fa-solid fa-lock"></i> password<input type="password" id="registerPassword" required minlength="6" /></label>
       <p class="form-error" id="registerError"></p>
-      <button type="submit" class="btn-primary">create account</button>
+      <button type="submit" class="btn-primary ripple">create account</button>
     </form>
   </div>
 </div>
 
-<!-- ===== Create / edit script modal ===== -->
+<!-- Wardrobe modal -->
+<div class="modal-backdrop hidden" id="wardrobeModalBackdrop">
+  <div class="modal modal-anim">
+    <button class="modal-close ripple" data-close="wardrobeModalBackdrop"><i class="fa-solid fa-xmark"></i></button>
+    <h2><i class="fa-solid fa-shirt" style="color:var(--accent);"></i> wardrobe</h2>
+    <p class="muted small">choose a tag to display on your profile.</p>
+    <div id="wardrobeOptions" class="wardrobe-options"></div>
+    <p class="form-error" id="wardrobeError"></p>
+  </div>
+</div>
+
+<!-- Create/edit script modal -->
 <div class="modal-backdrop hidden" id="scriptModalBackdrop">
-  <div class="modal modal-wide">
-    <button class="modal-close" data-close="scriptModalBackdrop">×</button>
-    <h2 id="scriptModalTitle">create script</h2>
+  <div class="modal modal-wide modal-anim">
+    <button class="modal-close ripple" data-close="scriptModalBackdrop"><i class="fa-solid fa-xmark"></i></button>
+    <h2 id="scriptModalTitle"><i class="fa-solid fa-code" style="color:var(--accent);"></i> create script</h2>
     <form id="scriptForm" class="modal-form">
       <input type="hidden" id="scriptFormId" />
       <div class="form-row-2">
         <label>title<input type="text" id="scriptTitle" maxlength="80" required /></label>
-        <label>language / type<input type="text" id="scriptLanguage" placeholder="python, lua, js…" maxlength="30" /></label>
+        <label>language<input type="text" id="scriptLanguage" placeholder="python, lua, js…" maxlength="30" /></label>
       </div>
       <label>description<textarea id="scriptDescription" maxlength="400" rows="2"></textarea></label>
-      <label>tags <span class="muted small">(comma separated)</span><input type="text" id="scriptTags" placeholder="utility, automation, fun" /></label>
+      <label>tags <span class="muted small">(comma separated)</span><input type="text" id="scriptTags" placeholder="utility, automation" /></label>
       <label>code<textarea id="scriptCode" class="code-area" rows="14" required spellcheck="false"></textarea></label>
       <p class="form-error" id="scriptFormError"></p>
-      <button type="submit" class="btn-primary">save script</button>
+      <button type="submit" class="btn-primary ripple">save script</button>
     </form>
   </div>
 </div>
 
-<!-- ===== Latest updates modal ===== -->
+<!-- Updates modal -->
 <div class="modal-backdrop hidden" id="updatesModalBackdrop">
-  <div class="modal">
-    <button class="modal-close" data-close="updatesModalBackdrop">×</button>
-    <h2>latest updates</h2>
+  <div class="modal modal-anim">
+    <button class="modal-close ripple" data-close="updatesModalBackdrop"><i class="fa-solid fa-xmark"></i></button>
+    <h2><i class="fa-solid fa-bolt" style="color:var(--accent);"></i> latest updates</h2>
     <p class="version-line">version <span id="updatesVersion">-</span></p>
     <p id="updatesText" class="updates-text"></p>
   </div>
 </div>
 
-<!-- ===== Owner Access admin panel (press O to open) ===== -->
+<!-- Admin panel -->
 <div class="admin-panel hidden" id="adminPanel">
   <div class="admin-header" id="adminDragHandle">
-    <span>owner access panel</span>
+    <span><i class="fa-solid fa-shield-halved"></i> owner access panel</span>
     <div class="admin-header-btns">
-      <button id="adminFullscreenBtn" title="toggle fullscreen">⛶</button>
-      <button id="adminCloseBtn" title="close (O)">×</button>
+      <button id="adminFullscreenBtn" title="fullscreen"><i class="fa-solid fa-expand"></i></button>
+      <button id="adminCloseBtn" title="close"><i class="fa-solid fa-xmark"></i></button>
     </div>
   </div>
   <div class="admin-tabs">
-    <button class="admin-tab active" data-admintab="users">users</button>
-    <button class="admin-tab" data-admintab="settings">site settings</button>
+    <button class="admin-tab active" data-admintab="users"><i class="fa-solid fa-users"></i> users</button>
+    <button class="admin-tab" data-admintab="settings"><i class="fa-solid fa-gear"></i> settings</button>
   </div>
   <div class="admin-body" id="adminBody"></div>
-  <div class="admin-resize-handle" id="adminResizeHandle"></div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast"><i class="fa-solid fa-circle-check toast-icon"></i><span id="toastMsg"></span></div>
 
-<!-- Google Identity Services — loaded with onload callback so we know exactly when it's ready -->
 <script>
   function onGoogleLibraryLoad() {
     if (window._googleReadyCb) window._googleReadyCb();
