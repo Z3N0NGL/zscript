@@ -9,7 +9,7 @@ const db = require('./db');
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '8mb' }));
+app.use(express.json({ limit: '16mb' }));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_only_secret_change_me';
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
@@ -26,6 +26,8 @@ function publicUser(u) {
   return {
     id: u.id, username: u.username, displayName: u.displayName,
     pfp: u.pfp || null, bio: u.bio || '', tags: u.tags,
+    customTags: u.customTags || [],
+    activeTag: u.activeTag,
     banned: u.banned, createdAt: u.createdAt
   };
 }
@@ -38,6 +40,7 @@ function publicScript(s, author) {
     createdAt: s.createdAt, updatedAt: s.updatedAt,
     installs: s.installs || 0,
     allowCopy: s.allowCopy !== false,
+    files: s.files || [],
     author: author ? publicUser(author) : null
   };
 }
@@ -86,6 +89,23 @@ function requireOwnerAccess(req, res, next) {
   next();
 }
 
+// ---- SSE for live updates ----
+const sseClients = new Set();
+app.get('/api/sse', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  const client = { res };
+  sseClients.add(client);
+  const hb = setInterval(() => res.write(': heartbeat\n\n'), 25000);
+  req.on('close', () => { sseClients.delete(client); clearInterval(hb); });
+});
+function broadcast(event, data) {
+  const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  sseClients.forEach(c => { try { c.res.write(msg); } catch(e) {} });
+}
+
 // ---- auth ----
 app.get('/api/config', (req, res) => {
   res.json({ googleEnabled: !!GOOGLE_CLIENT_ID, googleClientId: GOOGLE_CLIENT_ID });
@@ -106,6 +126,7 @@ app.post('/api/register', async (req, res) => {
       email: emailLower, passwordHash: bcrypt.hashSync(password, 10),
       googleId: null, pfp: null, bio: '',
       tags: { dev: false, owner: false, ownerAccess: false },
+      customTags: [],
       activeTag: null,
       banned: false, createdAt: new Date().toISOString()
     };
@@ -147,6 +168,7 @@ app.post('/api/google-login', async (req, res) => {
         email: emailLower, passwordHash: null, googleId: payload.sub,
         pfp: payload.picture || null, bio: '',
         tags: { dev: false, owner: false, ownerAccess: false },
+        customTags: [],
         activeTag: null, banned: false, createdAt: new Date().toISOString()
       };
       applyAdminBootstrap(user);
@@ -246,20 +268,29 @@ app.post('/api/scripts/:id/install', async (req, res) => {
 
 app.post('/api/scripts', requireAuth, async (req, res) => {
   try {
-    const { title, description, language, code, tags, allowCopy } = req.body;
+    const { title, description, language, code, tags, allowCopy, files } = req.body;
     if (!title || !code) return res.status(400).json({ error: 'Title and code required.' });
     if (title.length > 80) return res.status(400).json({ error: 'Title too long.' });
     if (code.length > 200000) return res.status(400).json({ error: 'Script too large.' });
+    const validFiles = Array.isArray(files) ? files.slice(0, 5).map(f => ({
+      name: String(f.name||'file').slice(0,80),
+      data: String(f.data||''),
+      type: String(f.type||'application/octet-stream'),
+      size: f.size || 0
+    })) : [];
     const script = {
       id: crypto.randomUUID(), userId: req.user.id,
       title: title.trim(), description: (description || '').slice(0, 400),
       language: (language || 'plaintext').slice(0, 30), code,
       tags: Array.isArray(tags) ? tags.slice(0, 5).map(t => String(t).slice(0, 20)) : [],
       allowCopy: typeof allowCopy === 'boolean' ? allowCopy : true,
+      files: validFiles,
       installs: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
     };
     await db.createScript(script);
-    res.json({ script: publicScript(script, req.user) });
+    const result = publicScript(script, req.user);
+    broadcast('script:new', { id: result.id, title: result.title, author: result.author?.username });
+    res.json({ script: result });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -269,7 +300,7 @@ app.put('/api/scripts/:id', requireAuth, async (req, res) => {
     if (!script) return res.status(404).json({ error: 'Script not found.' });
     if (script.userId !== req.user.id && !req.user.tags.ownerAccess)
       return res.status(403).json({ error: "Can't edit someone else's script." });
-    const { title, description, language, code, tags, allowCopy } = req.body;
+    const { title, description, language, code, tags, allowCopy, files } = req.body;
     const updates = { updatedAt: new Date().toISOString() };
     if (typeof title === 'string' && title.trim()) updates.title = title.trim().slice(0, 80);
     if (typeof description === 'string') updates.description = description.slice(0, 400);
@@ -277,6 +308,10 @@ app.put('/api/scripts/:id', requireAuth, async (req, res) => {
     if (typeof code === 'string' && code.length <= 200000) updates.code = code;
     if (Array.isArray(tags)) updates.tags = tags.slice(0, 5).map(t => String(t).slice(0, 20));
     if (typeof allowCopy === 'boolean') updates.allowCopy = allowCopy;
+    if (Array.isArray(files)) updates.files = files.slice(0, 5).map(f => ({
+      name: String(f.name||'file').slice(0,80), data: String(f.data||''),
+      type: String(f.type||'application/octet-stream'), size: f.size || 0
+    }));
     const updated = await db.updateScript(req.params.id, updates);
     const author = await db.getUserById(updated.userId);
     res.json({ script: publicScript(updated, author) });
@@ -298,6 +333,106 @@ app.delete('/api/scripts/:id', requireAuth, async (req, res) => {
 app.get('/api/settings', async (req, res) => {
   try { res.json({ settings: await db.getSettings() }); }
   catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ---- custom tags (global registry) ----
+app.get('/api/custom-tags', async (req, res) => {
+  try { res.json({ tags: await db.getCustomTags() }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/custom-tags', requireAuth, requireOwnerAccess, async (req, res) => {
+  try {
+    const { label, color, bg, font, icon } = req.body;
+    if (!label || !label.trim()) return res.status(400).json({ error: 'Label required.' });
+    const tag = {
+      id: crypto.randomUUID(),
+      label: label.trim().slice(0, 30),
+      color: color || '#ffffff',
+      bg: bg || '#333333',
+      font: font || 'inherit',
+      icon: icon || '',
+      createdAt: new Date().toISOString()
+    };
+    await db.createCustomTag(tag);
+    broadcast('customtag:new', tag);
+    res.json({ tag });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/custom-tags/:id', requireAuth, requireOwnerAccess, async (req, res) => {
+  try {
+    await db.deleteCustomTag(req.params.id);
+    broadcast('customtag:delete', { id: req.params.id });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Give a custom tag to a user
+app.post('/api/admin/users/:id/custom-tags', requireAuth, requireOwnerAccess, async (req, res) => {
+  try {
+    const user = await db.getUserById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    const { tagId, remove } = req.body;
+    const existing = user.customTags || [];
+    let updated;
+    if (remove) {
+      updated = existing.filter(t => t !== tagId);
+    } else {
+      if (!existing.includes(tagId)) updated = [...existing, tagId];
+      else updated = existing;
+    }
+    await db.updateUser(req.params.id, { customTags: updated });
+    broadcast('user:tags', { userId: req.params.id, customTags: updated });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ---- custom panels (dashboard widgets) ----
+app.get('/api/panels', async (req, res) => {
+  try { res.json({ panels: await db.getPanels() }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/panels', requireAuth, requireOwnerAccess, async (req, res) => {
+  try {
+    const { title, type, config } = req.body;
+    if (!title || !type) return res.status(400).json({ error: 'Title and type required.' });
+    const panel = {
+      id: crypto.randomUUID(),
+      title: title.trim().slice(0, 50),
+      type, // 'stats' | 'leaderboard' | 'announcements' | 'links' | 'countdown' | 'custom'
+      config: config || {},
+      enabled: true,
+      order: Date.now(),
+      createdAt: new Date().toISOString()
+    };
+    await db.createPanel(panel);
+    broadcast('panel:update', { panels: await db.getPanels() });
+    res.json({ panel });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/panels/:id', requireAuth, requireOwnerAccess, async (req, res) => {
+  try {
+    const { title, config, enabled, order } = req.body;
+    const updates = {};
+    if (typeof title === 'string') updates.title = title.trim().slice(0, 50);
+    if (config !== undefined) updates.config = config;
+    if (typeof enabled === 'boolean') updates.enabled = enabled;
+    if (typeof order === 'number') updates.order = order;
+    await db.updatePanel(req.params.id, updates);
+    broadcast('panel:update', { panels: await db.getPanels() });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/panels/:id', requireAuth, requireOwnerAccess, async (req, res) => {
+  try {
+    await db.deletePanel(req.params.id);
+    broadcast('panel:update', { panels: await db.getPanels() });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ---- admin ----
@@ -367,6 +502,7 @@ app.put('/api/admin/settings', requireAuth, requireOwnerAccess, async (req, res)
     if (Array.isArray(news)) updates.news = news.slice(0, 10);
     if (theme) updates.theme = theme;
     const settings = await db.updateSettings(updates);
+    broadcast('settings:update', { version: settings.version });
     res.json({ settings });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

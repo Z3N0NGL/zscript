@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>ZScripts</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 <link rel="stylesheet" href="styles.css" />
 </head>
@@ -24,6 +24,7 @@
   <nav class="topbar-actions">
     <button class="btn-ghost ripple" id="createScriptBtn"><i class="fa-solid fa-plus"></i> new script</button>
     <button class="btn-ghost ripple hidden" id="myScriptsBtn"><i class="fa-solid fa-folder-open"></i> my scripts</button>
+    <button class="btn-ghost ripple" id="customizerBtn" title="visual settings"><i class="fa-solid fa-palette"></i></button>
     <button class="btn-ghost ripple" id="searchUsersBtn"><i class="fa-solid fa-users"></i> users</button>
     <button class="btn-ghost ripple updates-btn" id="updatesBtn">
       <i class="fa-solid fa-bolt"></i> updates <span class="version-badge" id="versionBadge">v?.?.?</span>
@@ -36,21 +37,10 @@
   <!-- Home -->
   <section id="view-home" class="view">
     <div class="home-layout">
-      <aside class="sidebar">
-        <div class="sidebar-block">
-          <div class="sidebar-title">
-            <span class="dot dot-live"></span> site news
-          </div>
-          <div id="newsFeed" class="news-feed">
-            <p class="muted small">loading...</p>
-          </div>
-        </div>
-        <div class="sidebar-block">
-          <div class="sidebar-title"><i class="fa-solid fa-trophy" style="color:var(--accent);font-size:10px;"></i> top scripts</div>
-          <div id="topScriptsList" class="top-scripts-list">
-            <p class="muted small" style="padding:10px 12px;">loading...</p>
-          </div>
-        </div>
+      <!-- NEW SIDEBAR: Dashboard panels + customization + credits -->
+      <aside class="sidebar" id="mainSidebar">
+        <!-- Dynamic panels rendered here by JS -->
+        <div id="sidebarPanels"></div>
       </aside>
       <div class="scripts-main">
         <div class="view-heading">
@@ -147,6 +137,19 @@
       <label>description<textarea id="scriptDescription" maxlength="400" rows="2"></textarea></label>
       <label>tags <span class="muted small">(comma separated)</span><input type="text" id="scriptTags" placeholder="utility, automation" /></label>
       <label>code<textarea id="scriptCode" class="code-area" rows="14" required spellcheck="false"></textarea></label>
+      <!-- FILE UPLOAD SECTION -->
+      <div class="file-upload-section">
+        <div class="file-upload-header">
+          <i class="fa-solid fa-paperclip"></i> attach files
+          <span class="muted small">up to 5 files · any type</span>
+        </div>
+        <div class="file-drop-zone" id="fileDropZone">
+          <i class="fa-solid fa-cloud-arrow-up file-drop-icon"></i>
+          <span>drop files here or <label for="fileInput" class="file-pick-link">browse</label></span>
+          <input type="file" id="fileInput" multiple style="display:none;" />
+        </div>
+        <div id="fileList" class="file-list"></div>
+      </div>
       <div class="toggle-row">
         <div class="toggle-row-text">
           <span class="toggle-row-title"><i class="fa-solid fa-lock"></i> allow copy &amp; download</span>
@@ -160,6 +163,15 @@
       <p class="form-error" id="scriptFormError"></p>
       <button type="submit" class="btn-primary ripple">save script</button>
     </form>
+  </div>
+</div>
+
+<!-- Visual Customizer Modal -->
+<div class="modal-backdrop hidden" id="customizerModalBackdrop">
+  <div class="modal modal-anim customizer-modal">
+    <button class="modal-close ripple" data-close="customizerModalBackdrop"><i class="fa-solid fa-xmark"></i></button>
+    <h2><i class="fa-solid fa-palette" style="color:var(--accent2);"></i> visual customizer</h2>
+    <div id="customizerContent"></div>
   </div>
 </div>
 
@@ -184,6 +196,7 @@
   </div>
   <div class="admin-tabs">
     <button class="admin-tab active" data-admintab="users"><i class="fa-solid fa-users"></i> users</button>
+    <button class="admin-tab" data-admintab="create"><i class="fa-solid fa-wand-magic-sparkles"></i> create</button>
     <button class="admin-tab" data-admintab="settings"><i class="fa-solid fa-gear"></i> settings</button>
   </div>
   <div class="admin-body" id="adminBody"></div>
